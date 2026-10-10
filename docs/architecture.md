@@ -77,6 +77,12 @@ the MVP estimate is:
 estimated PM2.5 = sum(p_i * d_i) / sum(d_i)
 ```
 
+The calculation service excludes segments whose PM2.5 reading is missing from
+both sums except that their durations remain in total requested duration.
+It reports usable duration and coverage ratio/percentage. If no segment has a
+usable normalized PM2.5 concentration, the result is explicitly unavailable.
+AQI values must not be passed as PM2.5 concentrations in `µg/m³`.
+
 The response must include the segment durations, readings, total duration,
 units, source timestamp, and a clear indication when a reading is missing or
 estimated. The backend must reject invalid durations and must not silently

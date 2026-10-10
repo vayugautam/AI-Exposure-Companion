@@ -1,8 +1,8 @@
 # API contract
 
 This is the first FastAPI contract for the MVP. It validates routine input and
-returns a typed exposure report. Live provider calls and PM2.5 calculations
-are intentionally not implemented yet.
+returns a typed exposure report. The backend now contains a pure PM2.5
+calculation service, but live provider calls are not implemented yet.
 
 ## Health
 
@@ -135,13 +135,19 @@ The request contains 1 to 20 stops, with labels and routine names limited to
 ```
 
 `pm25_value` is a duration-weighted concentration in `µg/m³` when available.
+The calculation uses only normalized PM2.5 concentration readings; AQI values
+are not interchangeable with PM2.5 concentrations. Missing readings are
+excluded from the weighted mean, not treated as zero. The calculation reports
+requested duration, usable duration, coverage ratio, and coverage percentage.
 `provenance.timestamp` is the source-data timestamp, `source` identifies the
 provider, and `data_type` is one of `observation`, `forecast`, `estimate`, or
 `unknown`. `coverage` reports usable duration and requested duration in
 minutes, plus the same coverage as a ratio and percentage.
 
 The `status` is one of `available`, `unavailable`, or `error`. An unavailable
-or error response is explicit and does not fabricate a reading.
+or error response is explicit and does not fabricate a reading. The current
+report endpoint remains unavailable until a provider supplies normalized
+readings.
 
 ### Validation errors
 
