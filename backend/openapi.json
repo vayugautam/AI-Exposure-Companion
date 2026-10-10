@@ -1,0 +1,564 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Personal Air Exposure Companion API",
+    "description": "MVP contract for transparent, duration-weighted PM2.5 exposure estimates.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exposure": {
+      "post": {
+        "tags": [
+          "exposure"
+        ],
+        "summary": "Accept a mobile exposure request (mock response)",
+        "description": "Validate the mobile payload without querying a provider or estimating exposure.",
+        "operationId": "create_mock_exposure_api_v1_exposure_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExposureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockExposureResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exposure/reports": {
+      "post": {
+        "tags": [
+          "exposure"
+        ],
+        "summary": "Create an exposure report",
+        "operationId": "create_exposure_report_v1_exposure_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExposureReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Coordinates": {
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude",
+            "description": "Latitude in decimal degrees."
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude",
+            "description": "Longitude in decimal degrees."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "Coordinates"
+      },
+      "Coverage": {
+        "properties": {
+          "usable_duration_minutes": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Usable Duration Minutes"
+          },
+          "total_requested_duration_minutes": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Requested Duration Minutes"
+          },
+          "ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ratio"
+          },
+          "percentage": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Percentage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "usable_duration_minutes",
+          "total_requested_duration_minutes",
+          "ratio",
+          "percentage"
+        ],
+        "title": "Coverage"
+      },
+      "DataProvenance": {
+        "properties": {
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp",
+            "description": "Timestamp of the source data in UTC, when available."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Human-readable data source, when available."
+          },
+          "data_type": {
+            "$ref": "#/components/schemas/DataType",
+            "default": "unknown"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DataProvenance"
+      },
+      "DataType": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "forecast",
+          "estimate",
+          "unknown"
+        ],
+        "title": "DataType"
+      },
+      "ExposurePlace": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Latitude"
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Longitude"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "maximum": 1440.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Minutes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "latitude",
+          "longitude",
+          "duration_minutes"
+        ],
+        "title": "ExposurePlace",
+        "description": "A named location and the time spent there, as sent by the mobile app."
+      },
+      "ExposureReport": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "pm25_value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pm25 Value",
+            "description": "Duration-weighted PM2.5 concentration, in µg/m³."
+          },
+          "pm25_unit": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Pm25 Unit",
+            "default": "µg/m³"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DataProvenance"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "provenance",
+          "coverage",
+          "message"
+        ],
+        "title": "ExposureReport"
+      },
+      "ExposureRequest": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/ExposureUser"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/ExposurePlace"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Places"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user",
+          "places"
+        ],
+        "title": "ExposureRequest",
+        "description": "Input contract for the mobile exposure request endpoint."
+      },
+      "ExposureUser": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "ExposureUser",
+        "description": "Minimal, non-sensitive user identifier supplied by the mobile client."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Service liveness status."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse"
+      },
+      "MockExposureResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "mock"
+          },
+          "mock": {
+            "type": "boolean",
+            "title": "Mock",
+            "default": true
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "places_received": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Places Received"
+          },
+          "total_requested_duration_minutes": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Requested Duration Minutes"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "places_received",
+          "total_requested_duration_minutes",
+          "message",
+          "warnings"
+        ],
+        "title": "MockExposureResponse",
+        "description": "Temporary response until a PM2.5 provider and estimator are implemented."
+      },
+      "ReportStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "unavailable",
+          "error"
+        ],
+        "title": "ReportStatus"
+      },
+      "RoutineRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "default": "Untitled routine"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/RoutineStop"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Stops"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stops"
+        ],
+        "title": "RoutineRequest"
+      },
+      "RoutineStop": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "maximum": 1440.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Minutes",
+            "description": "Time spent at this stop, in minutes."
+          },
+          "coordinates": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Coordinates"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "duration_minutes"
+        ],
+        "title": "RoutineStop"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
