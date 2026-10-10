@@ -116,6 +116,17 @@ class RoutineRequest(BaseModel):
 
     name: str = Field(default="Untitled routine", min_length=1, max_length=MAX_ROUTINE_NAME_LENGTH)
     stops: list[RoutineStop] = Field(min_length=1, max_length=MAX_STOPS)
+    start_time: datetime | None = Field(
+        default=None,
+        description="UTC start time for evaluating the routine; defaults to now.",
+    )
+
+    @field_validator("start_time")
+    @classmethod
+    def validate_start_time_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            raise ValueError("start_time must include a timezone")
+        return value
 
     @field_validator("stops")
     @classmethod
@@ -139,6 +150,8 @@ class DataProvenance(BaseModel):
         description="Human-readable data source, when available.",
     )
     data_type: DataType = DataType.UNKNOWN
+    sources: list[str] = Field(default_factory=list)
+    data_types: list[DataType] = Field(default_factory=list)
 
 
 class Coverage(BaseModel):

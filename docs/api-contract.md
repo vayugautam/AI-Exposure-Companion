@@ -1,8 +1,9 @@
 # API contract
 
 This is the first FastAPI contract for the MVP. It validates routine input and
-returns a typed exposure report. The backend now contains a pure PM2.5
-calculation service, but live provider calls are not implemented yet.
+returns a typed exposure report. The report endpoint uses Open-Meteo's public
+Air Quality API for modelled hourly PM2.5 data when every routine stop has
+coordinates.
 
 ## Health
 
@@ -100,18 +101,24 @@ Content-Type: application/json
     },
     {
       "label": "Office",
-      "duration_minutes": 480
+      "duration_minutes": 480,
+      "coordinates": {
+        "latitude": 28.62,
+        "longitude": 77.21
+      }
     }
-  ]
+  ],
+  "start_time": "2026-10-10T08:00:00Z"
 }
 ```
 
 `latitude` must be between `-90` and `90`; `longitude` must be between `-180`
 and `180`. Each duration must be positive and no greater than 1440 minutes.
 The request contains 1 to 20 stops, with labels and routine names limited to
-120 characters.
+120 characters. `start_time` is optional and must include a timezone; when
+omitted, the backend evaluates the routine from the current UTC time.
 
-### Response while provider integration is unavailable
+### Response while provider data is unavailable
 
 ```json
 {
@@ -129,8 +136,8 @@ The request contains 1 to 20 stops, with labels and routine names limited to
     "ratio": 0.0,
     "percentage": 0.0
   },
-  "message": "Air-quality provider integration is not available yet.",
-  "error_code": "PROVIDER_NOT_IMPLEMENTED"
+  "message": "Open-Meteo PM2.5 data is temporarily unavailable.",
+  "error_code": "PROVIDER_ERROR"
 }
 ```
 
@@ -139,15 +146,40 @@ The calculation uses only normalized PM2.5 concentration readings; AQI values
 are not interchangeable with PM2.5 concentrations. Missing readings are
 excluded from the weighted mean, not treated as zero. The calculation reports
 requested duration, usable duration, coverage ratio, and coverage percentage.
-`provenance.timestamp` is the source-data timestamp, `source` identifies the
-provider, and `data_type` is one of `observation`, `forecast`, `estimate`, or
-`unknown`. `coverage` reports usable duration and requested duration in
-minutes, plus the same coverage as a ratio and percentage.
+`provenance.timestamp` is the routine evaluation end time, `source` identifies
+Open-Meteo and CAMS ENSEMBLE modelled data, and `data_type` is `estimate`.
+Open-Meteo data is modelled grid data, not a ground-monitor reading or an
+exact street-level measurement. `coverage` reports usable duration and
+requested duration in minutes, plus the same coverage as a ratio and
+percentage.
+`provenance.sources` and `provenance.data_types` list the source-aware
+provenance used across segments. OpenAQ ground-monitor readings are marked
+`observation`; Open-Meteo modelled values are marked `estimate`. Mixed-source
+reports use `data_type: "unknown"` and list both values rather than silently
+claiming one type.
 
 The `status` is one of `available`, `unavailable`, or `error`. An unavailable
-or error response is explicit and does not fabricate a reading. The current
-report endpoint remains unavailable until a provider supplies normalized
-readings.
+or error response is explicit and does not fabricate a reading. Stops without
+coordinates remain unavailable because the provider cannot be queried for
+them. Missing hourly values are not treated as zero.
+
+OpenAQ fallback first discovers a nearby station, then selects a sensor whose
+parameter is PM2.5 and whose units are `µg/m³`. Measurements are accepted
+only when their timestamps overlap the requested interval and are fresh
+enough for the evaluation. If those checks fail, the segment remains
+unavailable.
+
+Open-Meteo attribution: this project uses the Open-Meteo Air Quality API and
+must attribute the CAMS ENSEMBLE data provider. See the
+[Open-Meteo Air Quality API documentation](https://open-meteo.com/en/docs/air-quality-api).
+
+To manually test the live endpoint after starting the backend:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/v1/exposure/reports `
+  -ContentType "application/json" `
+  -Body '{"name":"Morning commute","start_time":"2026-10-10T08:00:00Z","stops":[{"label":"Home","duration_minutes":60,"coordinates":{"latitude":28.6139,"longitude":77.2090}}]}'
+```
 
 ### Validation errors
 

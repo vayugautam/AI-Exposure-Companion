@@ -51,7 +51,7 @@ Mobile validation and typed request
 FastAPI endpoint
         |
         v
-Provider adapter ---> One configured air-quality provider
+Open-Meteo adapter ---> Hourly modelled PM2.5 (`pm2_5`) data
         |
         v
 Normalized PM2.5 readings
@@ -63,10 +63,20 @@ Duration-weighted calculation service
 Typed estimate response ---> Mobile result screen
 ```
 
-The provider adapter is the only backend boundary that knows the selected
-provider's request and response format. The calculation service consumes a
-normalized internal reading model, so changing providers does not change the
-mobile contract or calculation logic.
+The provider adapter is the only backend boundary that knows the provider's
+request and response format. The Open-Meteo adapter requests UTC hourly
+`pm2_5` values and normalizes timestamps and concentrations. The OpenAQ
+adapter discovers a nearby location, selects a PM2.5 sensor, and retrieves
+time-bounded measurements using the server-side `OPENAQ_API_KEY`.
+
+Open-Meteo is queried first. OpenAQ is used only when Open-Meteo has no usable
+value for a complete routine segment. A fallback reading must have a nearby
+station, PM2.5 parameter, `µg/m³` units, an overlapping timestamp, and an
+acceptable freshness window. Values from both sources are never silently
+combined within one segment.
+
+The calculation service consumes normalized readings, so changing providers
+does not change the mobile contract or calculation logic.
 
 ## Calculation behavior
 
@@ -87,6 +97,14 @@ The response must include the segment durations, readings, total duration,
 units, source timestamp, and a clear indication when a reading is missing or
 estimated. The backend must reject invalid durations and must not silently
 substitute fabricated readings.
+
+Open-Meteo values are modelled CAMS ENSEMBLE grid data. They are not
+ground-monitor observations or exact street-level measurements. The
+application must attribute both Open-Meteo and the CAMS ENSEMBLE data provider.
+OpenAQ values are reported ground-monitor measurements and are marked as
+observations. When a report uses more than one source across its segments,
+the response lists all sources and marks the combined data type as `unknown`
+instead of implying that all values have the same provenance.
 
 ## Privacy behavior
 
