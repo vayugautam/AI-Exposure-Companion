@@ -7,7 +7,7 @@ from app.models.contracts import (
     MockExposureResponse,
     RoutineRequest,
 )
-from app.services.exposure import create_unavailable_report
+from app.services.exposure import create_provider_report
 
 router = APIRouter()
 
@@ -47,6 +47,5 @@ def create_mock_exposure(request: ExposureRequest) -> MockExposureResponse:
     tags=["exposure"],
     summary="Create an exposure report",
 )
-def create_exposure_report(routine: RoutineRequest) -> ExposureReport:
-    return create_unavailable_report(routine)
-
+async def create_exposure_report(routine: RoutineRequest) -> ExposureReport:
+    return await create_provider_report(routine)
